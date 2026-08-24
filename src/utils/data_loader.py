@@ -8,6 +8,7 @@ Cách dùng:
     chunks      = split_text(text, chunk_size=500, chunk_overlap=50)
     vectorstore = build_vectorstore(chunks, embeddings)
 """
+import hashlib
 from pathlib import Path
 
 
@@ -63,7 +64,30 @@ def build_vectorstore(chunks: list, embeddings):
     """
     from langchain_community.vectorstores import FAISS
 
+    project_root = Path(__file__).parent.parent.parent
+    model_name = str(
+        getattr(embeddings, "model", None)
+        or getattr(embeddings, "model_name", None)
+        or embeddings.__class__.__name__
+    )
+    fingerprint = hashlib.sha256()
+    fingerprint.update(model_name.encode("utf-8"))
+    for chunk in chunks:
+        fingerprint.update(b"\0")
+        fingerprint.update(chunk.encode("utf-8"))
+    cache_path = project_root / ".cache" / "faiss" / fingerprint.hexdigest()[:16]
+
+    if (cache_path / "index.faiss").exists() and (cache_path / "index.pkl").exists():
+        print(f"♻️  Đang dùng FAISS index đã cache ({len(chunks)} chunks) ...")
+        return FAISS.load_local(
+            str(cache_path),
+            embeddings,
+            allow_dangerous_deserialization=True,
+        )
+
     print(f"🔨 Đang tạo FAISS index từ {len(chunks)} chunks ...")
     vectorstore = FAISS.from_texts(chunks, embeddings)
+    cache_path.mkdir(parents=True, exist_ok=True)
+    vectorstore.save_local(str(cache_path))
     print("✅ FAISS vectorstore đã sẵn sàng.")
     return vectorstore

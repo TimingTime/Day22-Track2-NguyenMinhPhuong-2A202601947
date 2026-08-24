@@ -7,16 +7,43 @@ Tải cấu hình từ file .env và thiết lập biến môi trường LangSmi
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from utils.console import configure_utf8_output
+
+configure_utf8_output()
 
 # Tải .env từ thư mục gốc của project (Lab/)
 _root = Path(__file__).parent.parent
 load_dotenv(_root / ".env")
 
 # ── LangSmith — PHẢI set trước khi import LangChain ──────────────────────
-os.environ["LANGCHAIN_TRACING_V2"] = os.getenv("LANGCHAIN_TRACING_V2", "true")
-os.environ["LANGCHAIN_API_KEY"]    = os.getenv("LANGCHAIN_API_KEY", "")
-os.environ["LANGCHAIN_PROJECT"]    = os.getenv("LANGCHAIN_PROJECT", "day22-lab")
-os.environ["LANGCHAIN_ENDPOINT"]   = os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com")
+# Hỗ trợ cả tên LANGSMITH_* hiện hành và tên LANGCHAIN_* dùng trong rubric.
+_tracing = os.getenv(
+    "LANGSMITH_TRACING", os.getenv("LANGCHAIN_TRACING_V2", "true")
+)
+_langsmith_api_key = os.getenv(
+    "LANGSMITH_API_KEY", os.getenv("LANGCHAIN_API_KEY", "")
+)
+_langsmith_project = os.getenv(
+    "LANGSMITH_PROJECT", os.getenv("LANGCHAIN_PROJECT", "day22-lab")
+)
+_langsmith_endpoint = os.getenv(
+    "LANGSMITH_ENDPOINT",
+    os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com"),
+)
+
+# Không tạo background trace lỗi khi người dùng chưa cấu hình key. Khi có key,
+# giá trị `true` từ .env.example được giữ nguyên và tracing hoạt động bình thường.
+if not _langsmith_api_key:
+    _tracing = "false"
+
+os.environ["LANGSMITH_TRACING"] = _tracing
+os.environ["LANGCHAIN_TRACING_V2"] = _tracing
+os.environ["LANGSMITH_API_KEY"] = _langsmith_api_key
+os.environ["LANGCHAIN_API_KEY"] = _langsmith_api_key
+os.environ["LANGSMITH_PROJECT"] = _langsmith_project
+os.environ["LANGCHAIN_PROJECT"] = _langsmith_project
+os.environ["LANGSMITH_ENDPOINT"] = _langsmith_endpoint
+os.environ["LANGCHAIN_ENDPOINT"] = _langsmith_endpoint
 
 # ── Provider mặc định ─────────────────────────────────────────────────────
 # Đổi giá trị PROVIDER trong .env: openai | gemini | anthropic | ollama | openrouter
@@ -30,8 +57,8 @@ OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-s
 
 # ── Google Gemini ─────────────────────────────────────────────────────────
 GOOGLE_API_KEY          = os.getenv("GOOGLE_API_KEY", "")
-GEMINI_MODEL            = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
-GEMINI_EMBEDDING_MODEL  = os.getenv("GEMINI_EMBEDDING_MODEL", "models/embedding-001")
+GEMINI_MODEL            = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+GEMINI_EMBEDDING_MODEL  = os.getenv("GEMINI_EMBEDDING_MODEL", "models/gemini-embedding-001")
 
 # ── Anthropic ─────────────────────────────────────────────────────────────
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
@@ -48,8 +75,9 @@ OPENROUTER_MODEL    = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 # ── LangSmith ─────────────────────────────────────────────────────────────
-LANGSMITH_API_KEY = os.getenv("LANGCHAIN_API_KEY", "")
-LANGSMITH_PROJECT = os.getenv("LANGCHAIN_PROJECT", "day22-lab")
+LANGSMITH_API_KEY = _langsmith_api_key
+LANGSMITH_PROJECT = _langsmith_project
+LANGSMITH_ENDPOINT = _langsmith_endpoint
 
 
 def validate() -> bool:
@@ -62,14 +90,26 @@ def validate() -> bool:
     if not LANGSMITH_API_KEY:
         missing.append("LANGCHAIN_API_KEY (LangSmith)")
 
-    if PROVIDER == "openai" and not OPENAI_API_KEY:
-        missing.append("OPENAI_API_KEY")
-    elif PROVIDER == "gemini" and not GOOGLE_API_KEY:
-        missing.append("GOOGLE_API_KEY")
-    elif PROVIDER == "anthropic" and not ANTHROPIC_API_KEY:
-        missing.append("ANTHROPIC_API_KEY")
-    elif PROVIDER == "openrouter" and not OPENROUTER_API_KEY:
-        missing.append("OPENROUTER_API_KEY")
+    supported_providers = {"openai", "gemini", "anthropic", "ollama", "openrouter"}
+    if PROVIDER not in supported_providers:
+        missing.append(
+            f"PROVIDER hợp lệ ({', '.join(sorted(supported_providers))})"
+        )
+    else:
+        if PROVIDER == "openai" and not OPENAI_API_KEY:
+            missing.append("OPENAI_API_KEY")
+        if PROVIDER == "gemini" and not GOOGLE_API_KEY:
+            missing.append("GOOGLE_API_KEY")
+        if PROVIDER == "anthropic":
+            if not ANTHROPIC_API_KEY:
+                missing.append("ANTHROPIC_API_KEY")
+            if not OPENAI_API_KEY:
+                missing.append("OPENAI_API_KEY (dùng cho embeddings với Anthropic)")
+        if PROVIDER == "openrouter":
+            if not OPENROUTER_API_KEY:
+                missing.append("OPENROUTER_API_KEY")
+            if not OPENAI_API_KEY:
+                missing.append("OPENAI_API_KEY (dùng cho embeddings với OpenRouter)")
     # Ollama: không cần API key
 
     if missing:

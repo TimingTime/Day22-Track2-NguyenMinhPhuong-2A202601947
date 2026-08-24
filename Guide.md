@@ -332,7 +332,7 @@ def main():
 **9. Chạy và lưu log**
 
 ```bash
-python 02_prompt_hub_ab_routing.py | tee ../evidence/02_ab_routing_log.txt
+python 02_prompt_hub_ab_routing.py
 ```
 
 **10. Chụp ảnh Prompt Hub**
@@ -505,7 +505,7 @@ Khi thấy bảng so sánh điểm xuất hiện → chụp màn hình → lưu 
 **10. Sao chép báo cáo JSON vào thư mục evidence**
 
 ```bash
-cp ../data/ragas_report.json ../evidence/03_ragas_report.json
+# Script đã tự động ghi cả data/ragas_report.json và evidence/03_ragas_report.json
 ```
 
 ---
@@ -594,7 +594,10 @@ def validate(self, value, metadata):
     try:
         repaired = self._repair(value)
         json.loads(repaired)
-        return PassResult(value_override=repaired)
+        return FailResult(
+            error_message="JSON can sua dinh dang",
+            fix_value=repaired,
+        )
     except json.JSONDecodeError:
         pass
 
@@ -662,7 +665,7 @@ def demo_json_guard():
 **7. Chạy và lưu log**
 
 ```bash
-python 04_guardrails_validator.py | tee ../evidence/04_pii_demo_log.txt
+python 04_guardrails_validator.py
 ```
 
 ---

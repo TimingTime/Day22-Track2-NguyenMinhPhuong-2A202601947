@@ -16,6 +16,7 @@ build/
 venv/
 env/
 .venv/
+.cache/
 
 # IDE
 .vscode/
@@ -26,5 +27,4 @@ env/
 # macOS
 .DS_Store
 
-# Lab outputs (không commit, chỉ nộp evidence/)
-data/ragas_report.json
+# Báo cáo RAGAS trong data/ là deliverable bắt buộc và được phép commit.

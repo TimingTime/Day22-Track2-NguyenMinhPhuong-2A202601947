@@ -1,0 +1,34 @@
+JSON Formatting & Repair
+========================
+Case: Valid JSON
+Input: {"name": "Alice", "age": 30}
+Output: {"name": "Alice", "age": 30}
+----------------------------------------
+Case: Markdown fences
+Input: ```json
+{"name": "Bob"}
+```
+Output: {
+  "name": "Bob"
+}
+----------------------------------------
+Case: Single quotes
+Input: {'name': 'Charlie', 'score': 95}
+Output: {
+  "name": "Charlie",
+  "score": 95
+}
+----------------------------------------
+Case: Trailing comma
+Input: {"key": "value",}
+Output: {
+  "key": "value"
+}
+----------------------------------------
+Case: Truly invalid
+Input: This is not JSON at all: ??? {]
+Output: {
+  "error": "invalid_json",
+  "message": "Input could not be repaired as valid JSON."
+}
+----------------------------------------

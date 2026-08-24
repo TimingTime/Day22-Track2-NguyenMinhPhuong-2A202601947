@@ -1,0 +1,14 @@
+{
+  "verified_at": "2026-08-24T21:25:12+07:00",
+  "project": "day22-lab",
+  "root_runs_total": 622,
+  "rag_query": 75,
+  "ab_rag_query": 100,
+  "relevant_total": 175,
+  "prompts": [
+    "day22-rag-prompt-v1",
+    "day22-rag-prompt-v2",
+    "day22-rag-yourname-v1",
+    "day22-rag-yourname-v2"
+  ]
+}

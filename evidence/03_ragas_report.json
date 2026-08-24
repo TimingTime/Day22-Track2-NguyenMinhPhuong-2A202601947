@@ -1,0 +1,17 @@
+{
+  "generated_at": "2026-08-24T14:19:32.602698+00:00",
+  "samples_per_prompt": 50,
+  "prompt_v1_scores": {
+    "faithfulness": 0.9814357864357866,
+    "answer_relevancy": 0.8886846383475907,
+    "context_recall": 1.0,
+    "context_precision": 0.9399999999283334
+  },
+  "prompt_v2_scores": {
+    "faithfulness": 0.9726043956043955,
+    "answer_relevancy": 0.8505320078263934,
+    "context_recall": 1.0,
+    "context_precision": 0.9433333332608334
+  },
+  "target_met": true
+}

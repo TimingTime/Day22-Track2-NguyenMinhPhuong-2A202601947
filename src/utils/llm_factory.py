@@ -10,10 +10,71 @@ Cách dùng:
     llm_gemini = get_llm("gemini")    # chỉ định provider cụ thể
 """
 import sys
+import threading
+import time
+from collections import deque
 from pathlib import Path
+
+from langchain_core.embeddings import Embeddings
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 import config
+
+
+class _GeminiEmbeddingLimiter:
+    """Bộ giới hạn dùng chung cho quota embedding free-tier của Gemini.
+
+    Google tính quota theo số nội dung được embedding. Giữ tối đa 90 nội dung
+    trong cửa sổ 60 giây để chừa một ít headroom cho các query đồng thời.
+    """
+
+    def __init__(self, limit: int = 90, window_seconds: float = 60.0):
+        self.limit = limit
+        self.window_seconds = window_seconds
+        self._timestamps = deque()
+        self._lock = threading.Lock()
+
+    def acquire(self, units: int) -> None:
+        if units > self.limit:
+            raise ValueError(f"Mỗi batch Gemini chỉ được tối đa {self.limit} nội dung")
+
+        while True:
+            with self._lock:
+                now = time.monotonic()
+                while self._timestamps and now - self._timestamps[0] >= self.window_seconds:
+                    self._timestamps.popleft()
+
+                if len(self._timestamps) + units <= self.limit:
+                    self._timestamps.extend([now] * units)
+                    return
+
+                wait_seconds = self.window_seconds - (now - self._timestamps[0]) + 0.5
+
+            print(f"⏳ Gemini embedding quota: chờ {wait_seconds:.1f}s trước batch tiếp theo ...")
+            time.sleep(min(wait_seconds, 59.5))
+
+
+_GEMINI_EMBEDDING_LIMITER = _GeminiEmbeddingLimiter()
+
+
+class RateLimitedGeminiEmbeddings(Embeddings):
+    """Adapter giữ giao diện LangChain Embeddings và điều tiết Gemini quota."""
+
+    def __init__(self, inner):
+        self.inner = inner
+        self.model = inner.model
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        vectors = []
+        for start in range(0, len(texts), _GEMINI_EMBEDDING_LIMITER.limit):
+            batch = texts[start : start + _GEMINI_EMBEDDING_LIMITER.limit]
+            _GEMINI_EMBEDDING_LIMITER.acquire(len(batch))
+            vectors.extend(self.inner.embed_documents(batch, batch_size=len(batch)))
+        return vectors
+
+    def embed_query(self, text: str) -> list[float]:
+        _GEMINI_EMBEDDING_LIMITER.acquire(1)
+        return self.inner.embed_query(text)
 
 
 def get_llm(provider: str = None, temperature: float = 0.0):
@@ -51,6 +112,7 @@ def get_llm(provider: str = None, temperature: float = 0.0):
             model=config.GEMINI_MODEL,
             google_api_key=config.GOOGLE_API_KEY,
             temperature=temperature,
+            max_retries=10,
         )
 
     elif provider == "anthropic":
@@ -117,10 +179,11 @@ def get_embeddings(provider: str = None):
 
     elif provider == "gemini":
         from langchain_google_genai import GoogleGenerativeAIEmbeddings
-        return GoogleGenerativeAIEmbeddings(
+        inner = GoogleGenerativeAIEmbeddings(
             model=config.GEMINI_EMBEDDING_MODEL,
             google_api_key=config.GOOGLE_API_KEY,
         )
+        return RateLimitedGeminiEmbeddings(inner)
 
     elif provider == "anthropic":
         # Anthropic không cung cấp Embeddings API → dùng OpenAI thay thế

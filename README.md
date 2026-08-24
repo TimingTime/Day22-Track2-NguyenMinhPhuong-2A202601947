@@ -44,7 +44,13 @@ Trước khi bắt đầu, hãy đảm bảo bạn đã có:
 ### 1. Cài thư viện
 
 ```bash
-pip install -r requirements.txt
+python -m venv .venv
+
+# Windows PowerShell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+# macOS / Linux
+.venv/bin/python -m pip install -r requirements.txt
 ```
 
 > Lần đầu cài có thể mất 5–10 phút do nhiều gói phụ thuộc.
@@ -56,6 +62,8 @@ Sao chép tệp mẫu và điền thông tin của bạn:
 ```bash
 cp .env.example .env
 ```
+
+Trên Windows PowerShell, dùng `Copy-Item .env.example .env`.
 
 Mở tệp `.env` và điền các giá trị sau:
 
@@ -214,20 +222,17 @@ evidence/
 └── 04_json_demo_log.txt         ← Output console của JSON formatter
 ```
 
-### 3. Lưu output console vào tệp
+### 3. Tạo evidence từ lần chạy thật
 
-Sử dụng lệnh `tee` để vừa in ra màn hình vừa lưu vào tệp:
+Các script tự động tạo những tệp có thể sinh bằng mã:
 
-```bash
-python script.py | tee evidence/output.txt
-```
+- Bước 2 tạo `evidence/02_ab_routing_log.txt` sau khi chạy đủ 50 câu.
+- Bước 3 tạo cả `data/ragas_report.json` và `evidence/03_ragas_report.json`.
+- Bước 4 tạo riêng `evidence/04_pii_demo_log.txt` và
+  `evidence/04_json_demo_log.txt` sau khi assertions thành công.
 
-Ví dụ cụ thể:
-
-```bash
-python 02_prompt_hub_ab_routing.py | tee ../evidence/02_ab_routing_log.txt
-python 04_guardrails_validator.py  | tee ../evidence/04_pii_demo_log.txt
-```
+Ba ảnh PNG vẫn cần chụp thủ công từ LangSmith và terminal theo checklist trong
+`evidence/README.md`.
 
 ### 4. Push lên GitHub và nộp
 
